@@ -10,6 +10,8 @@ for placeType, link in subLinks.items():
 urls = list(urls)
 
 import requests
+import re
+import urllib
 import random
 from bs4 import BeautifulSoup
 #from geopy.geocoders import Nominatim
@@ -24,6 +26,18 @@ errorPlaceUrls = []
 latlongErrorPlaces = []
 #Places outside range
 outsideRangePlaces = []
+#places with google review,rating error
+google_reviews_rating_error=[]
+
+#returns the no of reviws 
+def get_google_review_nos(soup):
+	data = soup.find("div",{"class":"_A8k"})
+	extract= re.search("<span>(.*)</span></a>",str(data.contents[0]))
+	'''ex for extract.group(1):
+	   3,066 google reviews
+	'''
+	return int(extract.group(1).replace(",","").split(" ")[0])
+
 
 
 def rand_float(start, stop, step):
@@ -50,7 +64,8 @@ categ_times["Tours"] = [3,4]
 for url in urls:
     latlongErrorFlag = False
     parseErrorFlag= False
-    dataRow = [0] * 8
+    searchErrorFlag=False
+    dataRow = [0] * 11
     #make this url as list and apply function on each element 
     #url = "https://www.tripadvisor.in/Attraction_Review-g304553-d319703-Reviews-Mysore_Maharajah_s_Palace_Amba_Vilas-Mysuru_Mysore_Karnataka.html"
     request = requests.get(url)
@@ -106,13 +121,61 @@ for url in urls:
     except:
         parseErrorFlag = True
         pass
-        
+    
+    #below code gets the rating and no of reviews from google if google shows the result
+    mod_place_name=place_name.replace(" ","_") # replace the space between words with _ otherwise search shows error
+    url_for_google='https://www.google.com/search?q='+mod_place_name
+    headers={}
+    headers['User-Agent'] = "Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.27 Safari/537.17"
+    req = urllib.request.Request(url_for_google, headers = headers)
+    try:
+    	resp = urllib.request.urlopen(req)
+    	soup = BeautifulSoup(resp.read(),"html.parser")
+
+    	#get google rating
+    	data = soup.find("span",{"class":"rtng"})
+    	google_rating = float(data.contents[0])
+
+    	#get google no of reviews
+    	google_reviews= get_google_review_nos(soup)
+    except Exception as e:
+    	searchErrorFlag = True
+    	pass
+    mod_place_name=place_name.replace(" ","+")
+    KEY="AIzaSyBGq6l35uJecCrEjTgrwgd_gJUEOmsx9ns"
+    location = str(lattitude)+","+str(longitude)
+    try:
+    	#gives the place id 
+    	url_for_place_id=("https://maps.googleapis.com/maps/api/place/textsearch/json?query=%s&key=%s&location=%s")%(mod_place_name,KEY,location)
+    	response_json = requests.get(url_for_place_id).json()
+    	place_id= response_json['results'][0]['place_id']
+    except KeyError :
+    	searchErrorFlag = True
+    	pass
+    except Exception as e :
+    	searchErrorFlag= True
+    	pass
+    try:
+    	#gives the timings
+    	url_for_timings= ("https://maps.googleapis.com/maps/api/place/details/json?placeid=%s&key=%s")%(place_id,KEY)
+    	response_json = requests.get(url_for_place_id).json()
+    	timings=response_json['result']['opening_hours']
+    except KeyError :
+    	searchErrorFlag = True
+    	pass
+    except Exception as e :
+    	searchErrorFlag= True
+    	pass
+
     print(place_name,latitude,longitude,category)
     if parseErrorFlag:
         errorPlaceUrls.append(url)
     elif latlongErrorFlag:
         latlongErrorPlaces.append(place_name)
         print("*****LATLONG ERROR :"+place_name)
+    elif searchErrorFlag:
+    	google_reviews_rating_error.append(place_name)
+    	print("*****GOOGLE RATING OR REVIEW OR TIMINGS ERROR :"+place_name)
     else:
         #calculate avg time for multiple categories and then choose randomly betweent them
         avgTimes = []
@@ -135,4 +198,15 @@ for url in urls:
         dataRow[5] = review
         dataRow[6] = url
         dataRow[7] = avgTime
+        dataRow[8] = google_rating
+        dataRow[9] = google_reviews
+        dataRow[10] = timings
         dataList.append(dataRow)
+
+
+
+
+
+
+
+
