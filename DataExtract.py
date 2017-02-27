@@ -28,6 +28,8 @@ latlongErrorPlaces = []
 outsideRangePlaces = []
 #places with google review,rating error
 google_reviews_rating_error=[]
+#places with google timings error
+google_timings_errr=[]
 
 #returns the no of reviws 
 def get_google_review_nos(soup):
@@ -65,6 +67,7 @@ for url in urls:
     latlongErrorFlag = False
     parseErrorFlag= False
     searchErrorFlag=False
+    timingsErrorFlag=False
     dataRow = [0] * 11
     #make this url as list and apply function on each element 
     #url = "https://www.tripadvisor.in/Attraction_Review-g304553-d319703-Reviews-Mysore_Maharajah_s_Palace_Amba_Vilas-Mysuru_Mysore_Karnataka.html"
@@ -150,10 +153,10 @@ for url in urls:
     	response_json = requests.get(url_for_place_id).json()
     	place_id= response_json['results'][0]['place_id']
     except KeyError :
-    	searchErrorFlag = True
+    	timingsErrorFlag = True
     	pass
     except Exception as e :
-    	searchErrorFlag= True
+    	timingsErrorFlag= True
     	pass
     try:
     	#gives the timings
@@ -161,10 +164,10 @@ for url in urls:
     	response_json = requests.get(url_for_place_id).json()
     	timings=response_json['result']['opening_hours']
     except KeyError :
-    	searchErrorFlag = True
+    	timingsErrorFlag = True
     	pass
     except Exception as e :
-    	searchErrorFlag= True
+    	timingsErrorFlag= True
     	pass
 
     print(place_name,latitude,longitude,category)
@@ -175,7 +178,10 @@ for url in urls:
         print("*****LATLONG ERROR :"+place_name)
     elif searchErrorFlag:
     	google_reviews_rating_error.append(place_name)
-    	print("*****GOOGLE RATING OR REVIEW OR TIMINGS ERROR :"+place_name)
+    	print("*****GOOGLE RATING OR REVIEW  ERROR :"+place_name)
+    elif timingsErrorFlag:
+	google_timings_error.append(place_name)
+	print("*****GOOGLE TIMINGS ERROR :"+place_name)
     else:
         #calculate avg time for multiple categories and then choose randomly betweent them
         avgTimes = []
