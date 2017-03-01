@@ -437,7 +437,7 @@
     }
   }
 
-
+  //func that gets called when get response from backend
     function updateinfo()
     {
     if (xhr.readyState == 4 && xhr.status == 200)
@@ -448,6 +448,24 @@
       /* to structure the json object look at line no 154
       */
 
+      //dict to get the min max times based on categories
+      categ_times = {}
+
+      categ_times["Religious Sites"] = [1,2]
+      categ_times["Historic Places & Monuments"] = [1,3]
+      categ_times["Points of Interest & Landmarks"] = [0.5, 1]
+      categ_times["Nature & Parks"] = [1.5,2.5]
+      categ_times["Outdoor Activities"] = [2.5,3.5]
+      categ_times["Zoos & Aquariums"] = [2.5,4]
+      categ_times["Museums"] = [1.5,3]
+      categ_times["Shopping"] = [1,3]
+      categ_times["Food & Drink"] = [1,2]
+      categ_times["Spas & Wellness"] = [1,3]
+      categ_times["Water & Amusement Parks"] = [3,6]
+      categ_times["Concerts & Shows"] = [1.5,3.5]
+      categ_times["Nightlife"] = [1,2.5]
+      categ_times["Tours"] = [3,4]
+
       table = document.getElementById("table");
 
       //creates the heading of the table
@@ -455,19 +473,23 @@
       tbody=document.createElement("tbody");
       tr = document.createElement("tr");
       chk= document.createElement("th"); 
-      nam= document.createElement("th"); 
+      nam= document.createElement("th");
+      cat= document.createElement("th");
       rat= document.createElement("th");
       rev = document.createElement("th");
       timeSpent = document.createElement("th");
       editTime = document.createElement("th");
       chk.innerHTML = "";
       nam.innerHTML = "Name";
+      cat.innerHTML = "Category";
       rat.innerHTML = "Rating";
       rev.innerHTML = "Reviews";
       timeSpent.innerHTML = "Recommended Duration(hrs)";
       editTime.innerHTML = "Edit time";
 
+      tr.appendChild(chk);
       tr.appendChild(nam);
+      tr.appendChild(cat);
       tr.appendChild(rat);
       tr.appendChild(rev);
       tr.appendChild(timeSpent);
@@ -481,7 +503,15 @@
         s=i+'';
         tr.setAttribute("id",data.place[i]['place_name']);
         //tr.setAttribute("id",s);
-        nam= document.createElement("td"); 
+        
+        box_chk = document.createElement("td");
+        chk = document.createElement("input");
+        chk.setAttribute("type","checkbox");
+        checkId = "check"+data.place[i]['place_name'];
+        chk.setAttribute("id",checkId);
+        box_chk.appendChild(chk);
+        
+        nam= document.createElement("td");
         a = document.createElement('a');
         a.setAttribute('href',data.place[i]['url'])
         //a.setAttribute('href','abc.com');
@@ -491,6 +521,9 @@
         a.innerHTML=data.place[i]['place_name'];
         //a.innerHTML='palace';
         nam.appendChild(a);
+
+        cat= document.createElement("td");
+        cat.innerHTML = data.place[i]['category_name'];
 
         rat= document.createElement("td");
         rat.innerHTML = data.place[i]['rating'];
@@ -504,23 +537,43 @@
         timeSpent.innerHTML = data.place[i]['avg_time'];
         //timeSpent.innerHTML = '1.5'
 
+        //small calc for min and max times since avg time is randomly taken from any of the multiple categories but we are getting only one categ from the db and avg time may not fall in its range
+        minTime = categ_times[data.place[i]['category_name']][0];
+        maxTime = categ_times[data.place[i]['category_name']][1];
+        if(data.place[i]['avg_time'] < minTime){
+          minTime = data.place[i]['avg_time'];
+        }
+        else if(data.place[i]['avg_time'] > maxTime){
+          maxTime = data.place[i]['avg_time']; 
+        }
+
+        box_editTime = document.createElement("td");
+        //divMin = document.createElement("div");
+        //divMin.innerHTML = minTime;
         editTime = document.createElement("input");
         editTime.setAttribute("type","range");
         slideId = "slide" + i;
         editTime.setAttribute("id",slideId);
+        editTime.setAttribute("min",minTime);
+        editTime.setAttribute("max",maxTime);
         editTime.setAttribute("value",data.place[i]['avg_time']);
-        editTime.setAttribute("min","0.5");
-        editTime.setAttribute("max","4.5");
         editTime.setAttribute("step","0.5");
+        //divMax = document.createElement("div");
+        //divMax.innerHTML = maxTime;
+        //box_editTime.appendChild(divMin);
+        box_editTime.appendChild(editTime);
+        //box_editTime.appendChild(divMax);
         //editTime.setAttribute("onchange",function(){updateRecomTime(data.place[i]['place_name'],this.value);});
         //editTime.setAttribute("oninput",updateRecomTime(this,data.place[i]['place_name'],this.value));
         setTimeout(assign_event,50,slideId);
 
+        tr.appendChild(box_chk);
         tr.appendChild(nam);
+        tr.appendChild(cat);
         tr.appendChild(rat);
         tr.appendChild(rev);
         tr.appendChild(timeSpent);
-        tr.appendChild(editTime);
+        tr.appendChild(box_editTime);
 
         tbody.appendChild(tr);
 
@@ -545,8 +598,30 @@
 
       table.appendChild(tbody);
 
+      //add button to calling func to check the checkboxes that are ticked
+      but = document.createElement("input");
+      but.setAttribute("id","but");
+      but.setAttribute("type","button");
+      but.setAttribute("value","Choose");
+      //but.setAttribute("onclick","checkClick()");
+      //does the same as above but with parameters
+      but.addEventListener("click", function(event) {
+        checkClick(data.place);
+        event.preventDefault();
+      });
+      
+      document.body.appendChild(but);
     }
     }
+  
+  //func for checking checkboxes and and getting places to generate itinerary
+  function checkClick(places){
+    for(i=0;i<places.length;i++){
+      checkId = "check"+places[i]['place_name'];
+      if(document.getElementById(checkId).checked)
+        console.log(places[i]['place_name']);
+    }
+  }
 
     //Intermediate function to bind the slider with the function to change recommended value
     function assign_event(id)
@@ -565,10 +640,10 @@
     //func to update recommended time
     function updateRecomTime(event){
     editTime = document.getElementById(event.target.id);
-    tr = document.getElementById(event.target.parentNode.id);
+    tr = document.getElementById(event.target.parentNode.parentNode.id);
     while(true){
       if(typeof(editTime.value) != 'undefined'){
-        tr.childNodes[3].innerHTML = editTime.value;
+        tr.childNodes[5].innerHTML = editTime.value;
         break;
       }
       else{
