@@ -3,6 +3,7 @@
 <head>
     <link rel="stylesheet" href="http://localhost/bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="http://localhost/Project/checkbox_bootstrap_css_part_html.css">
+    <!--jquery is always needed by bootstrap-->
     <script src="http://localhost/jquery-2.2.4.js"></script>
     <script src="http://localhost/bootstrap/js/bootstrap.min.js"></script>
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
@@ -214,36 +215,58 @@
     </div>
     </div>
     </div>
-    </div>
+    <br/>
+    <div>
+        <div id="start_time">
+            <label>starting time</label><br/>
+               <input type="datetime-local" id ="start" oninput="capture_start_time()">  
+        </div>
+        <div  id="end_time">
+            <label>end time</label><br/>
+            <input type="datetime-local" id="end" oninput="capture_end_time()"> 
+        </div>
+    </div><br/>
         <div id="padding_to_table">
             <table class="table table-bordered" id="table" >
                   
             </table>
+            <div id="button">
+
+            </div>
         </div>
-    </div>
-    <div id="current">
-    </div>
+        <div  id="current">
+        </div>
     </div>
     <script>
     category_timer=null;
     markers = [];
     green_marker = null;
+    end_time;
+    start_time;
+    function capture_start_time(event)
+    {
+        start_time = document.getElementById("start").value;
+    }
+    function capture_end_time(event)
+    {
+        end_time = document.getElementById("end").value;
+    }
 
     function init()
     {
-    historical = document.getElementById('historical');
-    religious = document.getElementById('religious');
-    poi = document.getElementById('poi');
-    nature = document.getElementById('nature');
-    outdoor = document.getElementById('outdoor');
-    shopping = document.getElementById('shopping');
-    museums = document.getElementById('museums');
-    water = document.getElementById('water');
-    zoo = document.getElementById('zoo');
-    spas = document.getElementById('spas');
-    food = document.getElementById('food');
-    night = document.getElementById('night');
-    concerts = document.getElementById('concerts');
+        historical = document.getElementById('historical');
+        religious = document.getElementById('religious');
+        poi = document.getElementById('poi');
+        nature = document.getElementById('nature');
+        outdoor = document.getElementById('outdoor');
+        shopping = document.getElementById('shopping');
+        museums = document.getElementById('museums');
+        water = document.getElementById('water');
+        zoo = document.getElementById('zoo');
+        spas = document.getElementById('spas');
+        food = document.getElementById('food');
+        night = document.getElementById('night');
+        concerts = document.getElementById('concerts');
     }
 
     function register_catagory() 
@@ -599,10 +622,12 @@
       table.appendChild(tbody);
 
       //add button to calling func to check the checkboxes that are ticked
-      but = document.createElement("input");
+      button=document.getElementById('button');
+      but = document.createElement("button");
       but.setAttribute("id","but");
+      but.setAttribute("class","btn btn-success")
       but.setAttribute("type","button");
-      but.setAttribute("value","Choose");
+      but.innerHTML="Choose";
       //but.setAttribute("onclick","checkClick()");
       //does the same as above but with parameters
       but.addEventListener("click", function(event) {
@@ -610,7 +635,7 @@
         event.preventDefault();
       });
       
-      document.body.appendChild(but);
+      button.appendChild(but);
     }
     }
   
