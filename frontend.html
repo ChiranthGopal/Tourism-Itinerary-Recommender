@@ -165,13 +165,6 @@
                         </div>
                     </li>
                     <li class="list-group-item">
-                        Food & Drink
-                        <div class="material-switch pull-right">
-                            <input id="food" name="someSwitchOption001" type="checkbox" onchange="register_catagory()"/>
-                            <label for="food" class="label-primary"></label>
-                        </div>
-                    </li>
-                    <li class="list-group-item">
                         Spas & Wellness
                         <div class="material-switch pull-right">
                             <input id="spas" name="someSwitchOption001" type="checkbox" onchange="register_catagory()"/>
@@ -186,20 +179,29 @@
                         </div>
                     </li>
                     <li class="list-group-item">
-                        Conerts & shows
+                        Tours
+                        <div class="material-switch pull-right">
+                            <input id="tours" name="someSwitchOption001" type="checkbox" onchange="register_catagory()"/>
+                            <label for="tours" class="label-primary"></label>
+                        </div>
+                    </li>
+                    <!-- 
+                    <li class="list-group-item">
+                        Concerts & shows
                         <div class="material-switch pull-right">
                             <input id="concerts" name="someSwitchOption001" type="checkbox" onchange="register_catagory()"/>
                             <label for="concerts" class="label-primary"></label>
                         </div>
                     </li>
                     <li class="list-group-item">
-                        NightLife
+                        Food & Drink
                         <div class="material-switch pull-right">
-                            <input id="night" name="someSwitchOption001" type="checkbox" onchange="register_catagory()"/>
-                            <label for="night" class="label-primary"></label>
+                            <input id="food" name="someSwitchOption001" type="checkbox" onchange="register_catagory()"/>
+                            <label for="food" class="label-primary"></label>
                         </div>
                     </li>
-                    <!-- <li class="list-group-item"> 
+
+                    <li class="list-group-item"> 
                         <input type="button" onclick="show_places()" value="Submit Preferences">
                     </li>-->
 
@@ -218,11 +220,11 @@
     <br/>
     <div>
         <div id="start_time">
-            <label>starting time</label><br/>
+            <label>Start time</label><br/>
                <input type="datetime-local" id ="start" oninput="capture_start_time()">  
         </div>
         <div  id="end_time">
-            <label>end time</label><br/>
+            <label>End time</label><br/>
             <input type="datetime-local" id="end" oninput="capture_end_time()"> 
         </div>
     </div><br/>
@@ -238,6 +240,7 @@
         </div>
     </div>
     <script>
+    data = "";
     category_timer=null;
     markers = [];
     green_marker = null;
@@ -395,12 +398,12 @@
      toSend = toSend + "Spas & Wellness"+ ";";
     if(zoo.checked==true)
      toSend = toSend + "Zoos & Aquariums"+ ";";
-    if(food.checked==true)
-     toSend = toSend + "Food & Drink"+ ";";
-    if(night.checked==true)
-     toSend = toSend + "Nightlife"+ ";";
-    if(concerts.checked==true)
-     toSend = toSend + "Concerts & Shows"+ ";";
+    //if(food.checked==true)
+    // toSend = toSend + "Food & Drink"+ ";";
+    if(tours.checked==true)
+     toSend = toSend + "Tours"+ ";";
+    //if(concerts.checked==true)
+    // toSend = toSend + "Concerts & Shows"+ ";";
 
     console.log(toSend);
 
@@ -460,14 +463,44 @@
     }
   }
 
+  //func which normalizes ratings and reviews
+  function betaFunction(rating, review){
+    alpha = 3;
+    beta = 2;
+    R = rating/5;
+    v = review;
+    return ((alpha+(R*v)) / (alpha+beta+v))*5;
+  }
+
+  // normalize and add a field to obtained data
+  function normalizeRatings(){
+    lim = data.place.length;
+    for(var i=0;i<lim;i++){
+      data.place[i]['rating_score'] = betaFunction(Number(data.place[i]['rating']), Number(data.place[i]['review']));
+      //console.log(data.place[i]['place_name'],":",data.place[i]['rating_score']);
+    }
+  }
+
+  function sortResults(prop, asc) {
+    data.place = data.place.sort(function(a, b) {
+        if (asc) {
+            return (a[prop] > b[prop]) ? 1 : ((a[prop] < b[prop]) ? -1 : 0);
+        } else {
+            return (b[prop] > a[prop]) ? 1 : ((b[prop] < a[prop]) ? -1 : 0);
+        }
+    });
+  }
+
   //func that gets called when get response from backend
-    function updateinfo()
-    {
+  function updateinfo()
+  {
     if (xhr.readyState == 4 && xhr.status == 200)
     {
       data = JSON.parse(xhr.responseText);
       console.log(data);
 
+      normalizeRatings();
+      sortResults('rating_score',false);//false for desc sort
       /* to structure the json object look at line no 154
       */
 
@@ -622,7 +655,9 @@
       table.appendChild(tbody);
 
       //add button to calling func to check the checkboxes that are ticked
+      
       button=document.getElementById('button');
+      button.innerHTML = "";
       but = document.createElement("button");
       but.setAttribute("id","but");
       but.setAttribute("class","btn btn-success")
@@ -631,27 +666,27 @@
       //but.setAttribute("onclick","checkClick()");
       //does the same as above but with parameters
       but.addEventListener("click", function(event) {
-        checkClick(data.place);
+        checkClick();
         event.preventDefault();
       });
       
       button.appendChild(but);
     }
-    }
+  }
   
   //func for checking checkboxes and and getting places to generate itinerary
   function checkClick(places){
-    for(i=0;i<places.length;i++){
-      checkId = "check"+places[i]['place_name'];
+    for(var i=0;i<data.place.length;i++){
+      checkId = "check"+data.place[i]['place_name'];
       if(document.getElementById(checkId).checked)
-        console.log(places[i]['place_name']);
+        console.log(data.place[i]['place_name']);
     }
   }
 
     //Intermediate function to bind the slider with the function to change recommended value
     function assign_event(id)
     {
-        editTime = document.getElementById(id)
+        editTime = document.getElementById(id);
         while(true){
             if(editTime!=null){
                 editTime.addEventListener('change',updateRecomTime,true);
@@ -664,17 +699,24 @@
 
     //func to update recommended time
     function updateRecomTime(event){
-    editTime = document.getElementById(event.target.id);
-    tr = document.getElementById(event.target.parentNode.parentNode.id);
-    while(true){
-      if(typeof(editTime.value) != 'undefined'){
-        tr.childNodes[5].innerHTML = editTime.value;
-        break;
+      editTime = document.getElementById(event.target.id);
+      tr = document.getElementById(event.target.parentNode.parentNode.id);
+      while(true){
+        if(typeof(editTime.value) != 'undefined'){
+          tr.childNodes[5].innerHTML = editTime.value;
+          //now updating the value in data
+          lim = data.place.length;
+          for(var i=0;i<lim;i++){
+            if(data.place[i]['place_name'] == tr.childNodes[1].childNodes[0].innerHTML){
+              data.place[i]['avg_time'] = Number(editTime.value);
+            }
+          }
+          break;
+        }
+        else{
+          editTime = document.getElementById(event.target.id);
+        }
       }
-      else{
-        editTime = document.getElementById(event.target.id);
-      }
-    }
     }
     
     </script>
