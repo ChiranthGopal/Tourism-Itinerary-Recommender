@@ -6,6 +6,7 @@
     <!--jquery is always needed by bootstrap-->
     <script src="http://localhost/jquery-2.2.4.js"></script>
     <script src="http://localhost/bootstrap/js/bootstrap.min.js"></script>
+
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <meta charset="utf-8">
     <style>
@@ -215,18 +216,22 @@
     <div id="map">
       
     </div>
+    <br>
+    <div id = "shownPlace"></div>
     </div>
     </div>
     <br/>
     <div>
         <div id="start_time">
             <label>Start time</label><br/>
-               <input type="datetime-local" id ="start" oninput="capture_start_time()">  
+               <input type="datetime-local" id ="start">  
         </div>
         <div  id="end_time">
             <label>End time</label><br/>
-            <input type="datetime-local" id="end" oninput="capture_end_time()"> 
+            <input type="datetime-local" id="end"> 
         </div>
+        <br>
+        <input type="button" value="Enter" class="btn btn-success" onclick="getTime()">
     </div><br/>
         <div id="padding_to_table">
             <table class="table table-bordered" id="table" >
@@ -246,13 +251,21 @@
     green_marker = null;
     end_time;
     start_time;
-    function capture_start_time(event)
-    {
+    remaining_time = 0;
+    shownPlaces = []; //places in the itinerary
+    cur_usr_lat=12.29;
+    cur_usr_lng=76.64;
+    function getTime(){
         start_time = document.getElementById("start").value;
-    }
-    function capture_end_time(event)
-    {
         end_time = document.getElementById("end").value;
+        date1 = new Date(start_time);
+        date2 = new Date(end_time);
+        remaining_time = Math.abs(date2.getTime() - date1.getTime()) / (1000 * 3600.0);
+        if(isNaN(remaining_time))
+            alert("Please enter proper time");
+        //daysDiff = Math.round(timeDiff / (1000 * 3600 * 24));
+        //remaining_time=7;
+        console.log(remaining_time);
     }
 
     function init()
@@ -303,8 +316,11 @@
         clearMarkers();
         markers = [];
     }
-  
+   var directionsDisplay;
     function initMap() {
+        directionsService = new google.maps.DirectionsService();
+        directionsDisplay = new google.maps.DirectionsRenderer();
+        service = new google.maps.DistanceMatrixService;
         map = new google.maps.Map(document.getElementById('map'), {
       center: {lat: 12.29, lng: 76.64},
       zoom: 12
@@ -312,13 +328,13 @@
         var infoWindow = new google.maps.InfoWindow({map: map});
 
         // below line checks for users geo location if it is found then it sets  center of the map to users current position(setting to mysore for now)
-        if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(function(position) {
-        var pos = {
-          //lat: position.coords.latitude,
-          //lng: position.coords.longitude
-          lat: 12.29, lng: 76.64
-        };
+        //if (navigator.geolocation) {
+            //navigator.geolocation.getCurrentPosition(function(position) {
+            var pos = {
+              //lat: position.coords.latitude,
+              //lng: position.coords.longitude
+              lat: 12.29, lng: 76.64
+            };
 
           
         //infoWindow.setPosition(pos);
@@ -339,7 +355,9 @@
         //modified part this part is to locate the new lat long of the dragged part
 
         var t= new google.maps.event.addListener(marker, 'dragend', function(evt){
-            document.getElementById('current').innerHTML = '<p>Marker dropped: Current Lat: ' + evt.latLng.lat().toFixed(3) + ' Current Lng: ' + evt.latLng.lng().toFixed(3) + '</p>';
+            //document.getElementById('current').innerHTML = '<p>Marker dropped: Current Lat: ' + evt.latLng.lat().toFixed(3) + ' Current Lng: ' + evt.latLng.lng().toFixed(3) + '</p>';
+            cur_usr_lat=evt.latLng.lat();
+            cur_usr_lng=evt.latLng.lng();
         });
 
         var tt =  new google.maps.event.addListener(marker, 'dragstart', function(evt){
@@ -352,14 +370,14 @@
 
         
         map.setCenter(pos);
-      }, function() {
-        handleLocationError(true, infoWindow, map.getCenter());
-      });
-        }
-    else {
+      //}, function() {
+     //   handleLocationError(true, infoWindow, map.getCenter());
+     // });
+       // }
+    //else {
           // Browser doesn't support Geolocation
-          handleLocationError(false, infoWindow, map.getCenter());
-        }
+     //     handleLocationError(false, infoWindow, map.getCenter());
+     //   }
 
     }
 
@@ -477,6 +495,7 @@
     lim = data.place.length;
     for(var i=0;i<lim;i++){
       data.place[i]['rating_score'] = betaFunction(Number(data.place[i]['rating']), Number(data.place[i]['review']));
+      data.place[i]['avg_time'] =  Number(data.place[i]['avg_time']);
       //console.log(data.place[i]['place_name'],":",data.place[i]['rating_score']);
     }
   }
@@ -673,14 +692,210 @@
       button.appendChild(but);
     }
   }
-  
-  //func for checking checkboxes and and getting places to generate itinerary
-  function checkClick(places){
-    for(var i=0;i<data.place.length;i++){
+  waypoint=[];
+
+  function find_min(arr)
+  {
+  	var min=arr[0];
+  	var pos=0;
+  	for(var i=1;i<arr.length;i++)
+  	{
+  		if(min>arr[i])
+  		{
+  			min=arr[i];
+  			pos = i;
+  		}
+  	}
+  	return pos;
+  }
+
+    MAX = 99999;
+    function calculate_cost(matrix,wish_list){
+        res = [];
+        for(i=0;i<matrix.length;i++){
+            temp = [];
+            for(j=0;j<matrix.length;j++){
+                if(i == j || j ==0)
+                    temp.push(MAX);
+                else if(j !=0){
+                    ratingNorm = wish_list[j-1]['rating'] * 2; //Rating on scale of 10
+                    avgTimeNorm = wish_list[j-1]['visit_time'] * 3; //Avg Time on scale of 10
+                    travelTimeNorm = matrix[i][j] * 10; //Travel time on scale of 10
+                    
+                    score = travelTimeNorm - ratingNorm + avgTimeNorm;
+                    //console.log(travelTimeNorm);
+                    temp.push(score);
+                }
+            }
+            res.push(temp);
+        }
+        return res;
+    }
+
+  function calculate_waypoints(response,cost_matrix,wish_list)
+  {
+  	row=0;
+    count =0;
+    visited ={};
+  	while_breaker=false;
+    
+  	while(Object.keys(visited).length<Object.keys(wish_list).length)
+  	{
+        
+        //console.log('outside while')
+  		col=find_min(cost_matrix[row]);
+        console.log('col ',col );
+  		while(true)
+  		{
+            //console.log('inside while');
+            console.log(wish_list[col-1]['name']);
+  			if(visited[wish_list[col-1]['name']] ==true)
+  			{
+                console.log("******inside visited cheking if ");
+  				if(count==Object.keys(wish_list).length)
+  				{
+                    console.log("************inside visited length cheking  if ");
+                    while_breaker=true;
+  					break;
+  				}
+  				else
+  				{
+                    console.log("************inside visited length cheking  else ");
+  					cost_matrix[row][col]=99999;
+  					col = find_min(cost_matrix[row]);
+  				}
+
+  			}
+  			else
+  			{
+                console.log("******inside visited cheking else ");
+  				visited[wish_list[col-1]['name']]=true;
+  				count++;
+  				break;
+  			}
+
+  		}
+
+  		if(while_breaker==true)
+  			break;
+        console.log("********remaining_time  ",remaining_time," travelling time ",response.rows[row].elements[col]['duration']['value']/3600.0," duration ",wish_list[col-1]['visit_time']);
+  		if(remaining_time-response.rows[row].elements[col]['duration']['value']/3600.0-wish_list[col-1]['visit_time']>response.rows[col].elements[0]['duration']['value']/3600.0)
+  		{
+  			remaining_time=remaining_time-response.rows[row].elements[col]['duration']['value']/3600.0-wish_list[col-1]['visit_time'];
+            console.log("******** remaining_time after sub ",remaining_time);
+  			waypoint.push({'location':new google.maps.LatLng(wish_list[col-1]['lat'],wish_list[col-1]['lng'])});
+            shownPlaces.push(wish_list[col-1]['name']);
+            //waypoint.push({'location': response.originAddresses[col]});
+            row = col;
+  		} 
+  	    else
+        {
+            break;
+        }
+  	}
+    console.log("waypoint ",JSON.stringify(waypoint));
+    if(waypoint.length>0)
+    {
+        var request = 
+        {
+            origin : cur_usr_lat+","+cur_usr_lng,
+            destination : cur_usr_lat+","+cur_usr_lng,
+            waypoints : waypoint,
+            travelMode : 'DRIVING',
+        };
+        directionsService.route(request,function(response,status) {
+                    if(status=='OK')
+                    {
+                        deleteMarkers();
+                        var mysore = new google.maps.LatLng(12.2933, 79.6465);
+                        var mapOptions = {
+                                zoom:7,
+                                center: mysore
+                                }
+                        map = new google.maps.Map(document.getElementById('map'),mapOptions);
+                        directionsDisplay.setMap(map);
+                    
+                        directionsDisplay.setDirections(response);
+                        console.log(shownPlaces);
+                    }
+                });
+
+    }
+  	showPlaceNames();
+  	
+  }
+
+
+  function showPlaceNames(){
+    div = document.getElementById("shownPlace");
+    div.innerHTML = "User location";
+    x = Array.from(new Set(shownPlaces));
+    for(i=0;i<x.length;i++){
+        div.innerHTML += " -> " + x[i];
+    }
+    div.innerHTML += " -> User location"
+  }
+
+
+
+  function checkClick()
+  {
+    //clearing all globals for every time places are chosen
+  	wish_list={};
+    shownPlaces = [];
+    waypoint = [];
+
+  	count =0;
+    console.log("lat lng",typeof(cur_usr_lat), cur_usr_lng);
+    org =[];
+    //org.push({'lat':cur_usr_lat,'lng':cur_usr_lng});
+    org.push({'location': new google.maps.LatLng(cur_usr_lat,cur_usr_lng)})
+    for(i=0;i<data.place.length;i++)
+    {
       checkId = "check"+data.place[i]['place_name'];
       if(document.getElementById(checkId).checked)
-        console.log(data.place[i]['place_name']);
+        {
+            //console.log(places[i]['place_name']);[]
+            wish_list[count]={'name':data.place[i]['place_name'],'visit_time':data.place[i]['avg_time'],'lat':data.place[i]['latitude'],'lng':data.place[i]['longitude'],'rating':data.place[i]['rating_score']};
+            //console.log(wish_list);
+            count++;
+           	//org.push({lat:data.place[i]['latitude'],lng:data.place[i]['longitude']});
+            org.push({'location':new google.maps.LatLng(data.place[i]['latitude'],data.place[i]['longitude'])}) 
+        }
     }
+    console.log("orggggggg line 886", org);
+    var request =
+    {
+    	origins : org,
+    	destinations : org,
+    	travelMode : 'DRIVING'
+    }
+    service.getDistanceMatrix( request,function (response,status) {
+    	if(status=='OK')
+    	{
+            console.log("response ",response);
+    		orgi=[]
+    		dest=[]
+    		for(var i=0;i<response.rows.length;i++)
+    		{
+    			for(var j=0;j<response.rows[i].elements.length;j++)
+    			{
+    				dest.push(response.rows[i].elements[i]['duration']['value']/3600.0);
+    			}
+    			orgi.push(dest);
+    			dest=[];
+    		}
+            //console.log("origin for distance matrix ",orgi);
+    		cost_matrix = calculate_cost(orgi,wish_list);
+            //console.log("cost _ matrix ",cost_matrix);
+    		calculate_waypoints(response,cost_matrix,wish_list);
+    	}
+    	else
+    	{
+    		window.alert("Distance matrix request failed due to "+status);
+    	}
+    })
+ 	
   }
 
     //Intermediate function to bind the slider with the function to change recommended value
@@ -720,8 +935,11 @@
     }
     
     </script>
+    <!-- <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCnxx9FH6OhWoXLsVIvqoKdEvjxzs7QLt0&callback=initMap">
+    </script>-->
     <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDktM5C_FvrETwLyukVTlPfmPCjEwj7UpU&callback=initMap">
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDat4JgHxdH5PWQ-AJ2OKIWjRB63gLrJFY&callback=initMap">
     </script>
   </body>
 </html>
