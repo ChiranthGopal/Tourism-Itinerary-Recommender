@@ -8,6 +8,7 @@ cursor = db.cursor()
 #cursor.execute("USE test1")
 cursor.execute("DROP TABLE IF EXISTS placeToCategory")
 cursor.execute("DROP TABLE IF EXISTS place")
+cursor.execute("DROP TABLE IF EXISTS cachedPlaces")
 #cursor.execute("DROP TABLE IF EXISTS category")
 
 table1 = """
@@ -40,10 +41,22 @@ FOREIGN KEY(place_id) REFERENCES place(place_id),
 FOREIGN KEY(category_id) REFERENCES category(category_id)
 )
 """
+table4 = """
+CREATE TABLE cachedPlaces(
+src_place CHAR(5) NOT NULL,
+dest_place CHAR(5) NOT NULL,
+distance INT,
+time INT,
+PRIMARY KEY(src_place,dest_place),
+FOREIGN KEY(src_place) REFERENCES place(place_id),
+FOREIGN KEY(dest_place) REFERENCES place(place_id)
+)
+"""
 #cursor.execute(table1)
 cursor.execute(table2)
 cursor.execute(table3)
-
-
-
+cursor.execute(table4)
 #cursor.execute("INSERT INTO TABLE place()")
+
+db.commit()
+db.close()
